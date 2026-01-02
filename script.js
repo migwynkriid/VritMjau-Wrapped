@@ -1,6 +1,6 @@
 'use strict';
 
-const dataset = [
+const fallbackDataset = [
   {
     date: '2024-10-31',
     values: {
@@ -333,11 +333,16 @@ const dataset = [
   },
 ];
 
-const people = Object.keys(dataset[0].values);
+const templateValues = fallbackDataset[0]?.values || {};
+const people = Object.keys(templateValues);
+let dataset = fallbackDataset.map((entry) => cloneEntry(entry));
+
 const palette = people.map((_, index) => {
   const hue = (index * 360) / people.length + 160;
   return `hsl(${hue % 360}, 70%, 60%)`;
 });
+
+const DATASET_PATH = 'data/2025/daily-summary.json';
 
 const canvas = document.getElementById('chartCanvas');
 const ctx = canvas.getContext('2d');
@@ -352,12 +357,70 @@ const shortFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
 const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const wholeNumber = new Intl.NumberFormat('en');
 
-const flatValues = dataset.flatMap((entry) => Object.values(entry.values));
-const maxValue = Math.max(...flatValues);
+let maxValue = computeMax(dataset);
 
 const config = {
   monthDuration: 1500,
 };
+
+async function loadPreferredDataset() {
+  try {
+    const response = await fetch(DATASET_PATH, { cache: 'no-cache' });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch dataset (${response.status})`);
+    }
+    const payload = await response.json();
+    if (!Array.isArray(payload) || payload.length === 0) {
+      throw new Error('Daily dataset is empty.');
+    }
+
+    const merged = new Map(
+      fallbackDataset.map((entry) => [entry.date, cloneEntry(entry)])
+    );
+
+    payload.forEach((rawEntry) => {
+      const prepared = normaliseEntry(rawEntry);
+      if (prepared) {
+        merged.set(prepared.date, prepared);
+      }
+    });
+
+    return Array.from(merged.values()).sort(
+      (a, b) => new Date(a.date) - new Date(b.date)
+    );
+  } catch (error) {
+    console.warn('Falling back to embedded dataset.', error);
+    return fallbackDataset.map((entry) => cloneEntry(entry));
+  }
+}
+
+function normaliseEntry(entry) {
+  if (!entry || typeof entry !== 'object' || !entry.date || !entry.values) {
+    return null;
+  }
+  const values = {};
+  people.forEach((person) => {
+    const rawValue = Number(entry.values[person]);
+    values[person] = Number.isFinite(rawValue) ? Math.round(rawValue) : 0;
+  });
+  return { date: entry.date, values };
+}
+
+function cloneEntry(entry) {
+  if (!entry) {
+    return { date: '', values: {} };
+  }
+  return {
+    date: entry.date,
+    values: { ...entry.values },
+  };
+}
+
+function computeMax(data) {
+  const flattened = data.flatMap((item) => Object.values(item.values || {}));
+  const candidate = Math.max(...flattened, 0);
+  return candidate > 0 ? candidate : 1;
+}
 
 const legendValueMap = new Map();
 let timelineNodes = [];
@@ -392,6 +455,8 @@ function resizeCanvas() {
 }
 
 function buildLegend() {
+  legendEl.innerHTML = '';
+  legendValueMap.clear();
   const fragment = document.createDocumentFragment();
   people.forEach((person, index) => {
     const card = document.createElement('article');
@@ -434,6 +499,10 @@ function startAnimation(offset = 0) {
   playbackProgress = offset;
   startTime = null;
   isComplete = false;
+  if (!dataset.length) {
+    console.warn('Dataset is empty; nothing to animate.');
+    return;
+  }
   rafId = requestAnimationFrame(step);
 }
 
@@ -468,6 +537,12 @@ function draw(monthsFloat) {
   const height = canvas.height / (window.devicePixelRatio || 1);
 
   ctx.clearRect(0, 0, width, height);
+  if (!dataset.length) {
+    currentMonthEl.textContent = '—';
+    currentLeaderEl.textContent = 'Awaiting data';
+    return;
+  }
+
   paintBackdrop();
   drawGrid();
   drawLines(monthsFloat);
@@ -496,7 +571,7 @@ function drawGrid() {
   ctx.lineWidth = 1;
   ctx.setLineDash([6, 10]);
 
-  const verticalSteps = dataset.length - 1;
+  const verticalSteps = Math.max(1, dataset.length - 1);
   for (let i = 0; i <= verticalSteps; i += 1) {
     const x = left + (i / verticalSteps) * width;
     ctx.beginPath();
@@ -520,12 +595,14 @@ function drawGrid() {
 
 function getPoint(person, index) {
   const dataIndex = Math.min(dataset.length - 1, Math.max(0, index));
-  const value = dataset[dataIndex].values[person];
+  const value = dataset[dataIndex].values[person] ?? 0;
   const { left, right, top, bottom } = chartBounds;
   const width = right - left;
   const height = bottom - top;
-  const x = left + (dataIndex / (dataset.length - 1)) * width;
-  const normalised = value / maxValue;
+  const denominator = Math.max(1, dataset.length - 1);
+  const x = left + (dataIndex / denominator) * width;
+  const safeMax = maxValue || 1;
+  const normalised = value / safeMax;
   const y = bottom - normalised * height;
   return { x, y };
 }
@@ -571,6 +648,11 @@ function drawLines(monthsFloat) {
 }
 
 function updateMetadata(monthsFloat) {
+  if (!dataset.length) {
+    currentMonthEl.textContent = '—';
+    currentLeaderEl.textContent = 'Waiting for dataset';
+    return;
+  }
   const activeIndex = Math.min(dataset.length - 1, Math.max(0, Math.round(monthsFloat)));
   const activeMonth = dataset[activeIndex];
   currentMonthEl.textContent = monthFormatter.format(new Date(activeMonth.date));
@@ -609,10 +691,12 @@ function updateTimeline(monthsFloat) {
 
 replayButton.addEventListener('click', restartAnimation);
 window.addEventListener('resize', debounce(resizeCanvas, 150));
-window.addEventListener('load', () => {
-  resizeCanvas();
+window.addEventListener('load', async () => {
+  dataset = await loadPreferredDataset();
+  maxValue = computeMax(dataset);
   buildLegend();
   buildTimeline();
+  resizeCanvas();
   startAnimation();
 });
 
