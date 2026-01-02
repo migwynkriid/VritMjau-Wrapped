@@ -610,6 +610,7 @@ function getPoint(person, index) {
 function drawLines(monthsFloat) {
   const visibleSegments = Math.floor(monthsFloat);
   const remainder = monthsFloat - visibleSegments;
+  const labelTargets = [];
 
   people.forEach((person, index) => {
     ctx.save();
@@ -619,6 +620,7 @@ function drawLines(monthsFloat) {
     ctx.beginPath();
 
     let started = false;
+    let lastPoint = null;
     for (let i = 0; i <= visibleSegments; i += 1) {
       const point = getPoint(person, i);
       if (!started) {
@@ -627,6 +629,7 @@ function drawLines(monthsFloat) {
       } else {
         ctx.lineTo(point.x, point.y);
       }
+      lastPoint = point;
     }
 
     if (visibleSegments < dataset.length - 1) {
@@ -640,11 +643,18 @@ function drawLines(monthsFloat) {
         ctx.moveTo(from.x, from.y);
       }
       ctx.lineTo(interp.x, interp.y);
+      lastPoint = interp;
     }
 
     ctx.stroke();
     ctx.restore();
+
+    if (lastPoint) {
+      labelTargets.push({ person, color: palette[index], point: lastPoint });
+    }
   });
+
+  drawLabels(labelTargets);
 }
 
 function updateMetadata(monthsFloat) {
@@ -687,6 +697,51 @@ function updateTimeline(monthsFloat) {
     node.style.setProperty('--progress', progress);
     node.classList.toggle('is-active', Math.round(monthsFloat) === index);
   });
+}
+
+function drawLabels(items) {
+  if (!items.length) {
+    return;
+  }
+  ctx.save();
+  ctx.font = '600 12px "Space Grotesk", "Segoe UI", sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 1;
+
+  items.forEach(({ person, color, point }) => {
+    if (!point) {
+      return;
+    }
+    const label = person;
+    const metrics = ctx.measureText(label);
+    const paddingX = 8;
+    const paddingY = 6;
+    let x = point.x + 10;
+    let y = point.y;
+
+    const maxX = chartBounds.right - metrics.width - paddingX * 2 - 4;
+    const minX = chartBounds.left + 4;
+    const maxY = chartBounds.bottom - paddingY - 2;
+    const minY = chartBounds.top + paddingY + 2;
+
+    x = Math.min(Math.max(x, minX), maxX);
+    y = Math.min(Math.max(y, minY), maxY);
+
+    const boxX = x - paddingX;
+    const boxY = y - paddingY;
+    const boxWidth = metrics.width + paddingX * 2;
+    const boxHeight = paddingY * 2;
+
+    ctx.fillStyle = 'rgba(5, 6, 11, 0.82)';
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+    ctx.fillStyle = color;
+    ctx.fillText(label, x, y);
+  });
+
+  ctx.restore();
 }
 
 replayButton.addEventListener('click', restartAnimation);
