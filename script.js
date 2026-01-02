@@ -1,73 +1,7 @@
 'use strict';
 
 const fallbackDataset = [
-      {
-    date: '2024-10-31',
-    values: {
-      mecalex: 0,
-      dewminic: 0,
-      dgale: 0,
-      migwynkriid: 0,
-      cheesus0712: 0,
-      rudolfzzz117: 0,
-      gyuki: 0,
-      kaewein: 0,
-      kelemen: 0,
-      t8mz: 0,
-      pravipero: 0,
-      modil: 0,
-      bicaro: 0,
-      gale4047: 0,
-      marinasmiljan1010: 0,
-      lovidex: 0,
-      'b.b.johnny': 0,
-    },
-  },
   {
-    date: '2024-11-01',
-    values: {
-      mecalex: 1003,
-      dewminic: 537,
-      dgale: 882,
-      migwynkriid: 308,
-      cheesus0712: 5,
-      rudolfzzz117: 0,
-      gyuki: 198,
-      kaewein: 0,
-      kelemen: 0,
-      t8mz: 0,
-      pravipero: 0,
-      modil: 0,
-      bicaro: 0,
-      gale4047: 0,
-      marinasmiljan1010: 0,
-      lovidex: 0,
-      'b.b.johnny': 0,
-    },
-  },
-  {
-    date: '2024-12-01',
-    values: {
-      mecalex: 6638,
-      dewminic: 5155,
-      dgale: 4402,
-      migwynkriid: 3827,
-      cheesus0712: 1945,
-      rudolfzzz117: 643,
-      gyuki: 1466,
-      kaewein: 0,
-      kelemen: 0,
-      t8mz: 0,
-      pravipero: 0,
-      modil: 192,
-      bicaro: 228,
-      gale4047: 0,
-      marinasmiljan1010: 0,
-      lovidex: 0,
-      'b.b.johnny': 0,
-    },
-  },
-    {
     date: '2025-01-01',
     values: {
       mecalex: 15096,
@@ -422,8 +356,39 @@ function computeMax(data) {
   return candidate > 0 ? candidate : 1;
 }
 
+function buildTimelineMeta(data) {
+  const months = [];
+  const intervals = [];
+  if (!data.length) {
+    return { months, intervals };
+  }
+
+  let currentKey = null;
+  let startIndex = 0;
+
+  data.forEach((entry, index) => {
+    const key = entry.date.slice(0, 7);
+    if (key !== currentKey) {
+      if (currentKey !== null) {
+        intervals.push({ key: currentKey, start: startIndex, end: index - 1 });
+      }
+      currentKey = key;
+      startIndex = index;
+      months.push({ key, date: entry.date });
+    }
+
+    if (index === data.length - 1) {
+      intervals.push({ key, start: startIndex, end: index });
+    }
+  });
+
+  return { months, intervals };
+}
+
 const legendValueMap = new Map();
 let timelineNodes = [];
+let timelineMonths = [];
+let timelineIntervals = [];
 let chartBounds = { left: 80, top: 60, right: 0, bottom: 0 };
 let startTime = null;
 let rafId = null;
@@ -479,8 +444,8 @@ function buildLegend() {
 function buildTimeline() {
   timelineEl.innerHTML = '';
   const fragment = document.createDocumentFragment();
-  timelineNodes = dataset.map((entry) => {
-    const date = new Date(entry.date);
+  timelineNodes = timelineMonths.map((month) => {
+    const date = new Date(month.date);
     const node = document.createElement('div');
     node.className = 'timeline-node';
     node.innerHTML = `
@@ -689,17 +654,29 @@ function updateMetadata(monthsFloat, isFinalFrame = false) {
 }
 
 function updateTimeline(monthsFloat, isFinalFrame = false) {
-  if (!timelineNodes.length) {
+  if (!timelineNodes.length || !timelineIntervals.length) {
     return;
   }
   timelineNodes.forEach((node, index) => {
-    const relative = monthsFloat - index;
-    let progress = Math.max(0, Math.min(1, relative));
+    const interval = timelineIntervals[index];
+    if (!interval) {
+      return;
+    }
+    let progress = 0;
+    if (monthsFloat >= interval.end) {
+      progress = 1;
+    } else if (monthsFloat > interval.start) {
+      const span = Math.max(interval.end - interval.start, 0.0001);
+      progress = (monthsFloat - interval.start) / span;
+    }
+
     if (isFinalFrame && index === timelineNodes.length - 1) {
       progress = 1;
     }
-    node.style.setProperty('--progress', progress);
-    node.classList.toggle('is-active', Math.round(monthsFloat) === index);
+
+    node.style.setProperty('--progress', Math.max(0, Math.min(1, progress)));
+    const isActive = monthsFloat >= interval.start && monthsFloat <= interval.end + 0.001;
+    node.classList.toggle('is-active', isActive);
   });
 }
 
@@ -753,6 +730,9 @@ window.addEventListener('resize', debounce(resizeCanvas, 150));
 window.addEventListener('load', async () => {
   dataset = await loadPreferredDataset();
   maxValue = computeMax(dataset);
+  const timelineMeta = buildTimelineMeta(dataset);
+  timelineMonths = timelineMeta.months;
+  timelineIntervals = timelineMeta.intervals;
   buildLegend();
   buildTimeline();
   resizeCanvas();
