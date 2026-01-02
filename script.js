@@ -750,8 +750,8 @@ function updateMetadata(monthsFloat, isFinalFrame = false) {
 
   currentLeaderEl.textContent =
     leader.value > 0
-      ? `Leading listener: ${leader.person} • ${formatDuration(leader.value)}`
-      : 'Leading listener: warming up';
+      ? `Leading user: ${leader.person} • ${formatDuration(leader.value)}`
+      : 'Leading user: warming up';
 
   updateTimeline(monthsFloat, isFinalFrame);
 }
