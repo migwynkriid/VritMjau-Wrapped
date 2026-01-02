@@ -445,10 +445,10 @@ function resizeCanvas() {
   ctx.scale(ratio, ratio);
 
   chartBounds = {
-    left: 80,
-    top: 60,
-    right: cssWidth - 40,
-    bottom: cssHeight - 80,
+    left: 48,
+    top: 40,
+    right: cssWidth - 32,
+    bottom: cssHeight - 48,
   };
 
   draw(playbackProgress);
