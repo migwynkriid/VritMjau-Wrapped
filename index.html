@@ -15,16 +15,29 @@
 
   <main class="shell">
     <header class="hero">
-      <p class="eyebrow">VritMjau • Wrapped</p>
-      <h1>Month-by-month growth of our power listeners</h1>
-      <p class="lede">
-        A living canvas that plays back every spike, surge, and comeback inside the community from October 2024 through the end of 2025.
-        The lines bloom one month at a time so you can feel the cadence of the year in motion.
-      </p>
-      <div class="hero-pills">
-        <span class="pill">Autoplay timeline</span>
-        <span class="pill">17 community members</span>
-        <span class="pill">Excel powered</span>
+      <div class="hero-panel">
+        <div class="hero-panel__copy">
+          <p class="eyebrow">VritMjau • Wrapped</p>
+          <h1>Momentum you can literally watch breathe</h1>
+          <p class="lede">
+            Press play and the canvas paints itself. Each month flows into the next so you can track who surged, who faded,
+            and how the collective pulse of the community evolved.
+          </p>
+        </div>
+        <div class="hero-panel__stats" aria-label="Overview">
+          <article class="stat-card">
+            <p class="stat-label">Coverage</p>
+            <p class="stat-value">Oct ’24 → Dec ’25</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">Voices</p>
+            <p class="stat-value">17 listeners</p>
+          </article>
+          <article class="stat-card">
+            <p class="stat-label">Source</p>
+            <p class="stat-value">Excel timeline</p>
+          </article>
+        </div>
       </div>
     </header>
 
@@ -38,11 +51,16 @@
       </div>
       <div class="chart-stage">
         <canvas id="chartCanvas" width="1280" height="640" aria-label="Animated multi-user timeline"></canvas>
-        <div class="chart-meta">
+      </div>
+      <div class="chart-meta-bar" role="status">
+        <article class="meta-pill">
           <p class="meta-label">Current month</p>
           <p id="currentMonth" class="meta-value">—</p>
-          <p id="currentLeader" class="meta-sub">Waiting for data…</p>
-        </div>
+        </article>
+        <article class="meta-pill meta-pill--wide">
+          <p class="meta-label">Leading listener</p>
+          <p id="currentLeader" class="meta-sub meta-sub--value">Awaiting playback</p>
+        </article>
       </div>
       <div class="timeline" id="timeline" aria-hidden="false"></div>
     </section>

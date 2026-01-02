@@ -357,7 +357,6 @@ const maxValue = Math.max(...flatValues);
 
 const config = {
   monthDuration: 1500,
-  holdDuration: 3200,
 };
 
 const legendValueMap = new Map();
@@ -365,7 +364,9 @@ let timelineNodes = [];
 let chartBounds = { left: 80, top: 60, right: 0, bottom: 0 };
 let startTime = null;
 let rafId = null;
-let pauseTimeout = null;
+let playbackProgress = 0;
+let resumeProgress = 0;
+let isComplete = false;
 
 function resizeCanvas() {
   const ratio = window.devicePixelRatio || 1;
@@ -387,7 +388,7 @@ function resizeCanvas() {
     bottom: cssHeight - 80,
   };
 
-  draw(0);
+  draw(playbackProgress);
 }
 
 function buildLegend() {
@@ -427,48 +428,42 @@ function buildTimeline() {
   timelineEl.appendChild(fragment);
 }
 
-function startAnimation() {
+function startAnimation(offset = 0) {
   cancelAnimationFrame(rafId);
-  if (pauseTimeout) {
-    clearTimeout(pauseTimeout);
-    pauseTimeout = null;
-  }
+  resumeProgress = offset;
+  playbackProgress = offset;
   startTime = null;
+  isComplete = false;
   rafId = requestAnimationFrame(step);
 }
 
 function step(timestamp) {
+  if (isComplete) {
+    return;
+  }
   if (!startTime) {
-    startTime = timestamp;
+    startTime = timestamp - resumeProgress * config.monthDuration;
   }
   const totalMonths = dataset.length - 1;
   const elapsed = timestamp - startTime;
   const monthsFloat = Math.min(totalMonths, elapsed / config.monthDuration);
   draw(monthsFloat);
 
-  if (elapsed < totalMonths * config.monthDuration) {
-    rafId = requestAnimationFrame(step);
+  if (monthsFloat >= totalMonths) {
+    isComplete = true;
+    cancelAnimationFrame(rafId);
     return;
   }
 
-  if (!pauseTimeout) {
-    pauseTimeout = setTimeout(() => {
-      pauseTimeout = null;
-      startTime = null;
-      rafId = requestAnimationFrame(step);
-    }, config.holdDuration);
-  }
+  rafId = requestAnimationFrame(step);
 }
 
 function restartAnimation() {
-  if (pauseTimeout) {
-    clearTimeout(pauseTimeout);
-    pauseTimeout = null;
-  }
-  startAnimation();
+  startAnimation(0);
 }
 
 function draw(monthsFloat) {
+  playbackProgress = monthsFloat;
   const width = canvas.width / (window.devicePixelRatio || 1);
   const height = canvas.height / (window.devicePixelRatio || 1);
 
@@ -624,12 +619,12 @@ window.addEventListener('load', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     cancelAnimationFrame(rafId);
-    if (pauseTimeout) {
-      clearTimeout(pauseTimeout);
-      pauseTimeout = null;
-    }
+    resumeProgress = playbackProgress;
+    startTime = null;
   } else {
-    startAnimation();
+    if (!isComplete) {
+      startAnimation(resumeProgress);
+    }
   }
 });
 
