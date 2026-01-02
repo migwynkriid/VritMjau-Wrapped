@@ -2,72 +2,6 @@
 
 const fallbackDataset = [
   {
-    date: '2024-10-31',
-    values: {
-      mecalex: 0,
-      dewminic: 0,
-      dgale: 0,
-      migwynkriid: 0,
-      cheesus0712: 0,
-      rudolfzzz117: 0,
-      gyuki: 0,
-      kaewein: 0,
-      kelemen: 0,
-      t8mz: 0,
-      pravipero: 0,
-      modil: 0,
-      bicaro: 0,
-      gale4047: 0,
-      marinasmiljan1010: 0,
-      lovidex: 0,
-      'b.b.johnny': 0,
-    },
-  },
-  {
-    date: '2024-11-01',
-    values: {
-      mecalex: 1003,
-      dewminic: 537,
-      dgale: 882,
-      migwynkriid: 308,
-      cheesus0712: 5,
-      rudolfzzz117: 0,
-      gyuki: 198,
-      kaewein: 0,
-      kelemen: 0,
-      t8mz: 0,
-      pravipero: 0,
-      modil: 0,
-      bicaro: 0,
-      gale4047: 0,
-      marinasmiljan1010: 0,
-      lovidex: 0,
-      'b.b.johnny': 0,
-    },
-  },
-  {
-    date: '2024-12-01',
-    values: {
-      mecalex: 6638,
-      dewminic: 5155,
-      dgale: 4402,
-      migwynkriid: 3827,
-      cheesus0712: 1945,
-      rudolfzzz117: 643,
-      gyuki: 1466,
-      kaewein: 0,
-      kelemen: 0,
-      t8mz: 0,
-      pravipero: 0,
-      modil: 192,
-      bicaro: 228,
-      gale4047: 0,
-      marinasmiljan1010: 0,
-      lovidex: 0,
-      'b.b.johnny': 0,
-    },
-  },
-  {
     date: '2025-01-01',
     values: {
       mecalex: 15096,
@@ -546,7 +480,8 @@ function draw(monthsFloat) {
   paintBackdrop();
   drawGrid();
   drawLines(monthsFloat);
-  updateMetadata(monthsFloat);
+  const isFinalFrame = monthsFloat >= dataset.length - 1 - 0.0001;
+  updateMetadata(monthsFloat, isFinalFrame);
 }
 
 function paintBackdrop() {
@@ -657,7 +592,7 @@ function drawLines(monthsFloat) {
   drawLabels(labelTargets);
 }
 
-function updateMetadata(monthsFloat) {
+function updateMetadata(monthsFloat, isFinalFrame = false) {
   if (!dataset.length) {
     currentMonthEl.textContent = '—';
     currentLeaderEl.textContent = 'Waiting for dataset';
@@ -684,16 +619,19 @@ function updateMetadata(monthsFloat) {
       ? `Leading listener: ${leader.person} • ${wholeNumber.format(leader.value)} plays`
       : 'Leading listener: warming up';
 
-  updateTimeline(monthsFloat);
+  updateTimeline(monthsFloat, isFinalFrame);
 }
 
-function updateTimeline(monthsFloat) {
+function updateTimeline(monthsFloat, isFinalFrame = false) {
   if (!timelineNodes.length) {
     return;
   }
   timelineNodes.forEach((node, index) => {
     const relative = monthsFloat - index;
-    const progress = Math.max(0, Math.min(1, relative));
+    let progress = Math.max(0, Math.min(1, relative));
+    if (isFinalFrame && index === timelineNodes.length - 1) {
+      progress = 1;
+    }
     node.style.setProperty('--progress', progress);
     node.classList.toggle('is-active', Math.round(monthsFloat) === index);
   });
