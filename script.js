@@ -1,6 +1,8 @@
 'use strict';
 
-const fallbackDataset = [
+const SECONDS_PER_HOUR = 3600;
+
+const fallbackDataset = minutesToSeconds([
   {
     date: '2024-10-31',
     values: {
@@ -331,7 +333,7 @@ const fallbackDataset = [
       'b.b.johnny': 10,
     },
   },
-];
+]);
 
 const templateValues = fallbackDataset[0]?.values || {};
 const people = Object.keys(templateValues);
@@ -354,9 +356,6 @@ const replayButton = document.getElementById('replayButton');
 
 const monthFormatter = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' });
 const shortFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
-const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
-const wholeNumber = new Intl.NumberFormat('en');
-
 let maxValue = computeMax(dataset);
 
 const config = {
@@ -398,10 +397,14 @@ function normaliseEntry(entry) {
   if (!entry || typeof entry !== 'object' || !entry.date || !entry.values) {
     return null;
   }
+  const sourceUnit = entry.unit === 'seconds' ? 'seconds' : 'minutes';
+  const multiplier = sourceUnit === 'seconds' ? 1 : 60;
   const values = {};
   people.forEach((person) => {
     const rawValue = Number(entry.values[person]);
-    values[person] = Number.isFinite(rawValue) ? Math.round(rawValue) : 0;
+    values[person] = Number.isFinite(rawValue)
+      ? Math.round(rawValue * multiplier)
+      : 0;
   });
   return { date: entry.date, values };
 }
@@ -417,9 +420,42 @@ function cloneEntry(entry) {
 }
 
 function computeMax(data) {
-  const flattened = data.flatMap((item) => Object.values(item.values || {}));
-  const candidate = Math.max(...flattened, 0);
-  return candidate > 0 ? candidate : 1;
+  let maxSeconds = 0;
+  data.forEach((entry) => {
+    Object.values(entry.values || {}).forEach((value) => {
+      if (value > maxSeconds) {
+        maxSeconds = value;
+      }
+    });
+  });
+  return maxSeconds > 0 ? maxSeconds / SECONDS_PER_HOUR : 1;
+}
+
+function minutesToSeconds(entries) {
+  return entries.map((entry) => {
+    const values = {};
+    Object.entries(entry.values || {}).forEach(([person, value]) => {
+      values[person] = Number(value || 0) * 60;
+    });
+    return {
+      date: entry.date,
+      values,
+    };
+  });
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return '0s';
+  }
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
+  }
+  if (seconds < SECONDS_PER_HOUR) {
+    return `${Math.round(seconds / 60)}m`;
+  }
+  const hours = seconds / SECONDS_PER_HOUR;
+  return hours >= 10 ? `${Math.round(hours)}h` : `${hours.toFixed(1)}h`;
 }
 
 function buildTimelineMeta(data) {
@@ -496,7 +532,7 @@ function buildLegend() {
       <span class="swatch" style="--swatch:${palette[index]}"></span>
       <div class="legend-copy">
         <p class="label">${person}</p>
-        <p class="value" data-person="${person}">0</p>
+        <p class="value" data-person="${person}">0s</p>
       </div>
     `;
     fragment.appendChild(card);
@@ -627,14 +663,15 @@ function drawGrid() {
 
 function getPoint(person, index) {
   const dataIndex = Math.min(dataset.length - 1, Math.max(0, index));
-  const value = dataset[dataIndex].values[person] ?? 0;
+  const valueSeconds = dataset[dataIndex].values[person] ?? 0;
+  const valueHours = valueSeconds / SECONDS_PER_HOUR;
   const { left, right, top, bottom } = chartBounds;
   const width = right - left;
   const height = bottom - top;
   const denominator = Math.max(1, dataset.length - 1);
   const x = left + (dataIndex / denominator) * width;
   const safeMax = maxValue || 1;
-  const normalised = value / safeMax;
+  const normalised = valueHours / safeMax;
   const y = bottom - normalised * height;
   return { x, y };
 }
@@ -707,13 +744,13 @@ function updateMetadata(monthsFloat, isFinalFrame = false) {
     }
     const node = legendValueMap.get(person);
     if (node) {
-      node.textContent = compactNumber.format(value);
+      node.textContent = formatDuration(value);
     }
   });
 
   currentLeaderEl.textContent =
     leader.value > 0
-      ? `Leading listener: ${leader.person} • ${wholeNumber.format(leader.value)} plays`
+      ? `Leading listener: ${leader.person} • ${formatDuration(leader.value)}`
       : 'Leading listener: warming up';
 
   updateTimeline(monthsFloat, isFinalFrame);

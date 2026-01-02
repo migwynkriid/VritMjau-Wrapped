@@ -73,10 +73,10 @@ async function main() {
         if (!TARGET_SET.has(canonical)) {
           return;
         }
-        const minutes = Number.isFinite(entry.total_time)
-          ? Math.round(entry.total_time / 60)
+        const seconds = Number.isFinite(entry.total_time)
+          ? Math.round(entry.total_time)
           : 0;
-        sampled[canonical] = minutes;
+        sampled[canonical] = seconds;
       });
 
       const values = {};
@@ -87,6 +87,7 @@ async function main() {
       result.push({
         date: formatDate(month, day),
         values,
+        unit: 'seconds',
         source: snapshotPath.replace(baseDir, 'data/2025'),
       });
     }
