@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VritMjau Wrapped Timeline</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="aura" aria-hidden="true">
+    <span class="orb orb-one"></span>
+    <span class="orb orb-two"></span>
+    <span class="orb orb-three"></span>
+  </div>
+
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">VritMjau • Wrapped</p>
+      <h1>Month-by-month growth of our power listeners</h1>
+      <p class="lede">
+        A living canvas that plays back every spike, surge, and comeback inside the community from October 2024 through the end of 2025.
+        The lines bloom one month at a time so you can feel the cadence of the year in motion.
+      </p>
+      <div class="hero-pills">
+        <span class="pill">Autoplay timeline</span>
+        <span class="pill">17 community members</span>
+        <span class="pill">Excel powered</span>
+      </div>
+    </header>
+
+    <section class="chart-card">
+      <div class="chart-card__header">
+        <div>
+          <p class="eyebrow">Live playback</p>
+          <h2>Animated progression</h2>
+        </div>
+        <button id="replayButton" class="ghost-btn" type="button">Replay sequence</button>
+      </div>
+      <div class="chart-stage">
+        <canvas id="chartCanvas" width="1280" height="640" aria-label="Animated multi-user timeline"></canvas>
+        <div class="chart-meta">
+          <p class="meta-label">Current month</p>
+          <p id="currentMonth" class="meta-value">—</p>
+          <p id="currentLeader" class="meta-sub">Waiting for data…</p>
+        </div>
+      </div>
+      <div class="timeline" id="timeline" aria-hidden="false"></div>
+    </section>
+
+    <section class="legend-panel">
+      <div class="legend-panel__head">
+        <div>
+          <p class="eyebrow">Cast</p>
+          <h3>Everyone in the race</h3>
+        </div>
+        <p class="legend-panel__hint">Values update as the playback advances month by month.</p>
+      </div>
+      <div class="legend-grid" id="legend"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
